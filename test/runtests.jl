@@ -1,64 +1,28 @@
-@time_imports using BioModelsLoader, Test, SBML, JSON3, SBMLToolkit, ModelingToolkit, Base.Threads, TimerOutputs, CSV, DataFrames
-gids_fn = "/Users/anand/.julia/dev/BioModelsLoader/gids.txt"
+using BioModelsAnalysis, BioModelsLoader, Test, SBML, JSON3, SBMLToolkit, ModelingToolkit, Base.Threads, TimerOutputs, CSV, DataFrames, ProgressMeter, Suppressor
+
+logdir = joinpath(@__DIR__, "logs")
+mkpath(logdir)
+
+N = 50
+gids_fn = BioModelsAnalysis.data("gids.txt")
 gids = readlines(gids_fn)
+fns = map(x -> joinpath(BioModelsAnalysis.ODE_DIR, "$x.xml"), gids)
+ids = gids[sortperm(fns; by=filesize, rev=true)]
+ids = ids[1:N]
 
-ode_dir = "/Users/anand/.julia/dev/BioModelsLoader/data/odes"
-gid = gids[1]
-fn = joinpath(ode_dir, "$gid.xml")
-m = readSBML(fn, BioModelsLoader.DEFAULT_CONVERT_FUNCTION)
-
-# we need to fix TTFX
-@time ReactionSystem(m) #  28.182277 seconds (33.16 M allocations: 1.927 GiB, 15.95% gc time, 99.54% compilation time)
-@time ReactionSystem(m) #   0.011952 seconds (29.73 k allocations: 1.410 MiB)
-rs = ReactionSystem(m)
-sys = structural_simplify(convert(ODESystem, rs))
-
-get_ssys(m) = structural_simplify(convert(ODESystem, ReactionSystem(m)))
-
-id_to_fn(id) = joinpath(ode_dir, "$id.xml")
-fns = map(gid->joinpath(ode_dir, "$gid.xml"), gids)
+BioModelsLoader.get_archive(ids, BioModelsAnalysis.ODE_DIR)
 @test all(isfile.(fns))
+# running on all 520 good ODE models took 300.730831 seconds (11.49 M allocations: 508.212 MiB, 0.78% gc time, 6.04% compilation time)
+gs, bs = @time BioModelsAnalysis.goodbadt(BioModelsAnalysis.timed_read_sbml, ids); 
+@test length(gs) == 43 # ArgumentError("cannot convert NULL to string")
 
-ids = gids[sortperm(fns;by=filesize,rev=true)]
+ms = map(x -> x[2][2], gs);
+m = ms[end-2];
+@test_logs (:warn,) match_mode = :any BioModelsAnalysis.get_ssys(m)
+@test_nowarn @timed(@suppress_err(BioModelsAnalysis.get_ssys(m)))
 
-ms = SBML.Model[]
-Threads.@threads for id in ids[1:20]
-    fn = joinpath(ode_dir, "$id.xml")
-    @info fn
-    # m = @timeit to "$id" readSBML(fn, BioModelsLoader.DEFAULT_CONVERT_FUNCTION)
-    m = @timev readSBML(fn, BioModelsLoader.DEFAULT_CONVERT_FUNCTION)
-    push!(ms, m)
-end
-const to = TimerOutput()
-
-ms = SBML.Model[]
-for id in ids[21:100]
-    fn = joinpath(ode_dir, "$id.xml")
-    @info fn
-    m = @timeit to "$id" readSBML(fn, BioModelsLoader.DEFAULT_CONVERT_FUNCTION)
-    push!(ms, m)
-end
-
-report_severities = ["Error"],
-throw_severities = ["Fatal"]
-
-
-##
-rows = []
-for (i, m) in enumerate(ms)
-    props = [:compartments, :species, :reactions, :parameters, :events, :rules, :function_definitions]
-    ps = [:id=>ids[i], (props .=> length.(getproperty.((m,), props)))...]
-    nt = NamedTuple(ps)
-    push!(rows, nt)
-end
-df = DataFrame(rows)
-sort!(df, [:reactions, :species, :parameters];rev=true)
-md = Dict(ids[1:20] .=> ms);
-id = df.id[1]
-fn = id_to_fn(id)
-m = md[id]
-@profview get_ssys(m)
-gd = Dict(map(x->x[1][2] => x[2], g));
-m = gd["MODEL1009150002"]
-
-"MODEL1006230049" # this one is very slow 
+# this takes hours so we only do a subset of biomodels 
+gs2, bs2 = @time goodbadt(x -> @timed(@suppress_err(get_ssys(x))), ms);
+# @test length(bs2) == 11 # if we tested on all of them 
+# serialize(joinpath(logdir, "good_ssys.jls"), gs2)
+# @test length(gs2) == 43
