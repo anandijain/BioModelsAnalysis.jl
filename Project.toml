@@ -1,0 +1,19 @@
+name = "BioModelsAnalysis"
+uuid = "3614a9e5-56d5-4343-9b56-4a7035d04208"
+authors = ["anand jain <anandj@uchicago.edu>"]
+version = "0.1.0"
+
+[deps]
+BioModelsLoader = "26c28ebd-56f7-4a60-ba3a-fb6af1d1d974"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+SBML = "e5567a89-2604-4b09-9718-f5f78e97c3bb"
+SBMLToolkit = "86080e66-c8ac-44c2-a1a0-9adaadfe4a4e"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
