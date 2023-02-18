@@ -1,0 +1,6 @@
+[odes]
+git-tree-sha1 = "0817d8c614bbd387aba1dcf30a62494df298269f"
+
+    [[odes.download]]
+    url = "https://github.com/anandijain/BioModelsLoader.jl/releases/download/v0.1.1/biomodels_odes.tar.gz"
+    sha256 = "d11bdf28c6d551037417318a3ee8207c94441f437dd5937c704428b8582478f4"

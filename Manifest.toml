@@ -2,13 +2,13 @@
 
 julia_version = "1.10.0-DEV"
 manifest_format = "2.0"
-project_hash = "ac8c1c88a1440e035cd6de642bbf58977db36d2a"
+project_hash = "c1f22ab27342e6fa986fe9fde5c9332fdb6f19e8"
 
 [[deps.AbstractAlgebra]]
 deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Markdown", "Random", "RandomExtensions", "SparseArrays", "Test"]
-git-tree-sha1 = "df23d15b1090a3332a09a7a51da45bd9f0a07f92"
+git-tree-sha1 = "6a401840ec697d05b6e3aa2a7453f3555e0b5cd6"
 uuid = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
-version = "0.27.8"
+version = "0.27.9"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"

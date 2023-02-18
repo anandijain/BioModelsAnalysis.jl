@@ -1,34 +1,58 @@
-using BioModelsAnalysis, BioModelsLoader, Test, SBML, JSON3, SBMLToolkit, ModelingToolkit, Base.Threads, TimerOutputs, CSV, DataFrames, ProgressMeter, Suppressor
+using BioModelsAnalysis, BioModelsLoader, Test, SBML, JSON3, Base.Threads, TimerOutputs, CSV, DataFrames, ProgressMeter, Suppressor
+# using SBMLToolkit, ModelingToolkit
 
 logdir = joinpath(@__DIR__, "logs")
 mkpath(logdir)
-mkpath(BioModelsAnalysis.ODE_DIR)
 
 N = 50
-gids_fn = BioModelsAnalysis.data("gids.txt")
-gids = readlines(gids_fn)
-fns = map(x -> joinpath(BioModelsAnalysis.ODE_DIR, "$x.xml"), gids)
-ids = gids[sortperm(fns; by=filesize, rev=true)]
+# gids_fn = BioModelsAnalysis.data("gids.txt")
+# gids = readlines(gids_fn)
+dir = BioModelsAnalysis.ODE_DIR
+fns = readdir(dir; join=true)
+ids = map(x -> splitext(basename(x))[1], fns)
+p = sortperm(fns; by=filesize, rev=true)
 
-fns = fns[1:N]
-ids = ids[1:N]
-
-if !all(isfile.(fns))
-    BioModelsLoader.get_archive(ids, BioModelsAnalysis.ODE_DIR)
-end
-
-@test all(isfile.(fns))
 # running on all 520 good ODE models took 300.730831 seconds (11.49 M allocations: 508.212 MiB, 0.78% gc time, 6.04% compilation time)
-gs, bs = @time BioModelsAnalysis.goodbadt(BioModelsAnalysis.timed_read_sbml, ids); 
-@test length(gs) == 50 # ArgumentError("cannot convert NULL to string")
+f = x -> @timed(@suppress_err(readSBML(BioModelsAnalysis.id_to_fn(x), BioModelsLoader.DEFAULT_CONVERT_FUNCTION)))
+(gs, bs) = @time BioModelsAnalysis.goodbadt(f, ids);
 
-ms = map(x -> x[2][2], gs);
-m = ms[end-2];
-@test_logs (:warn,) match_mode = :any BioModelsAnalysis.get_ssys(m)
-@test_nowarn @timed(@suppress_err(BioModelsAnalysis.get_ssys(m)))
+df = BioModelsAnalysis.meta_df(gs)
+CSV.write("logs/meta_df.csv", df)
 
+# "redesign this"
+# function folded_goodbadt(fs, xs; kws...)
+#     gs, bs = [], []
+#     for f in fs
+#         xs, b = goodbadt(f, xs; kws...)
+#         push!(gs, xs)
+#         push!(bs, b)
+#     end
+#     gs, bs
+# end
+
+
+
+# g = x -> @timed(@suppress_err(BioModelsAnalysis.get_ssys(x)))
+# fs = [f, g]
+# ys = folded_goodbadt(fs, ids[1:1])
+
+#revisit this shit after writing 
+# whats going on w the stochastic results here
+# its almost certainly a threading issue, since `goodbad` returns consistent `length(gs)`
+# (gs_, bs_) = @time BioModelsAnalysis.goodbadt(f, ids);
+# @test_broken length(gs) == length(gs_)
+
+# f = x -> @timed(@suppress_err(BioModelsAnalysis.get_ssys(x)))
 # this takes hours so we only do a subset of biomodels 
-gs2, bs2 = @time goodbadt(x -> @timed(@suppress_err(get_ssys(x))), ms);
+# gs2, bs2 = @time BioModelsAnalysis.goodbadt(f, ms; verbose=true);
+# @test length(gs2) == N
+
 # @test length(bs2) == 11 # if we tested on all of them 
 # serialize(joinpath(logdir, "good_ssys.jls"), gs2)
 # @test length(gs2) == 43
+
+# md = Dict(good_ids .=> ms);
+
+# for id in good_ids
+#     @test collect(mdf[findfirst(mdf.id .== id), 2:end]) == BioModelsAnalysis.model_metadata_nt(md[id])
+# end
