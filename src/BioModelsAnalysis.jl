@@ -6,7 +6,10 @@ data(x) = joinpath(DATADIR, x)
 ODE_DIR = BioModelsAnalysis.data("odes")
 
 get_ssys(m) = structural_simplify(convert(ODESystem, ReactionSystem(m)))
-id_to_fn(id) = joinpath(data("odes"), "$id.xml")
+id_to_fn(id) = joinpath(ODE_DIR, "$id.xml")
+unzip(xs) = first.(xs), last.(xs)
+
+const MODEL_META_PROPS = [:compartments, :species, :reactions, :parameters, :events, :rules, :function_definitions]
 
 function goodbadt(f, xs; verbose=false)
     n = length(xs)
@@ -20,7 +23,7 @@ function goodbadt(f, xs; verbose=false)
             y = f(x)
             push!(good, (i, x) => y)
         catch e
-            push!(bad, (i, x) => e)
+            push!(bad, (i, x) => (e, current_exceptions()))
         end
         next!(p)
     end
@@ -36,37 +39,30 @@ function timed_read_sbml(id)
     time_nt, val
 end
 
-"todo get rid of this "
-function time_f_tup(f, x)
-    y = @timed f(x)
-    time_nt = (; id, y[filter(!=(:value), keys(y))]...)
-    val = y.value
-    time_nt, val
+function split_timev(nt)
+    nt[Not(:value)], nt[:value]
 end
 
-function model_metadata_nt(id_m_pair)
-    id, m = id_m_pair
-    props = [:compartments, :species, :reactions, :parameters, :events, :rules, :function_definitions]
-    ps = [:id => id, (props .=> length.(getproperty.((m,), props)))...]
-    NamedTuple(ps)
+function model_metadata_nt(m)
+    length.(getproperty.((m,), MODEL_META_PROPS))
 end
 
 "given goods of timed_read_sbml, make a dataframe with model size metadata and timings"
 function meta_df(gs)
-    nts = map(x -> x[2][1], gs)
-    ms = map(x -> x[2][2], gs);
-    
-    df = DataFrame(nts)
-    sort!(df, :time; rev=true)
-    df[!, :filesize] = filesize.(id_to_fn.(df.id))
-    
+    nts, ms = unzip(map(BioModelsAnalysis.split_timev, last.(gs)))
     good_ids = map(x -> x[1][2], gs)
-    id_m_pairs = good_ids .=> ms;
-    len_nts = model_metadata_nt.(id_m_pairs);
-    mdf = DataFrame(len_nts)
+    df = DataFrame(nts)
+    insertcols!(df, 1, :id => good_ids)
+    sort!(df, :time; rev=true)
+    df[!, :filesize] = filesize.(BioModelsAnalysis.id_to_fn.(df.id))
+
+    lens = BioModelsAnalysis.model_metadata_nt.(ms);
+    mdf = DataFrame(stack(lens;dims=1), BioModelsAnalysis.MODEL_META_PROPS)
+    insertcols!(mdf, 1, :id => good_ids)
     big_df = innerjoin(mdf, df, on=:id)
     sort!(big_df, [:reactions, :species, :parameters]; rev=true)
     big_df
 end
+
 
 end # module BioModelsAnalysis
