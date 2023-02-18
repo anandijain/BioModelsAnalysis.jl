@@ -2,6 +2,7 @@ using BioModelsAnalysis, BioModelsLoader, Test, SBML, JSON3, SBMLToolkit, Modeli
 
 logdir = joinpath(@__DIR__, "logs")
 mkpath(logdir)
+mkpath(BioModelsAnalysis.ODE_DIR)
 
 N = 50
 gids_fn = BioModelsAnalysis.data("gids.txt")
