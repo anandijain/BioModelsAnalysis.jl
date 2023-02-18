@@ -1,9 +1,9 @@
 module BioModelsAnalysis
 using BioModelsLoader, Test, SBML, JSON3, SBMLToolkit, ModelingToolkit, Base.Threads, TimerOutputs, CSV, DataFrames, ProgressMeter, Suppressor
-
+using Pkg.Artifacts
 DATADIR = joinpath(@__DIR__, "..", "data")
 data(x) = joinpath(DATADIR, x)
-ODE_DIR = BioModelsAnalysis.data("odes")
+ODE_DIR = artifact"odes"
 
 get_ssys(m) = structural_simplify(convert(ODESystem, ReactionSystem(m)))
 id_to_fn(id) = joinpath(ODE_DIR, "$id.xml")
