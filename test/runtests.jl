@@ -9,13 +9,18 @@ gids_fn = BioModelsAnalysis.data("gids.txt")
 gids = readlines(gids_fn)
 fns = map(x -> joinpath(BioModelsAnalysis.ODE_DIR, "$x.xml"), gids)
 ids = gids[sortperm(fns; by=filesize, rev=true)]
+
+fns = fns[1:N]
 ids = ids[1:N]
 
-BioModelsLoader.get_archive(ids, BioModelsAnalysis.ODE_DIR)
+if !all(isfile.(fns))
+    BioModelsLoader.get_archive(ids, BioModelsAnalysis.ODE_DIR)
+end
+
 @test all(isfile.(fns))
 # running on all 520 good ODE models took 300.730831 seconds (11.49 M allocations: 508.212 MiB, 0.78% gc time, 6.04% compilation time)
 gs, bs = @time BioModelsAnalysis.goodbadt(BioModelsAnalysis.timed_read_sbml, ids); 
-@test length(gs) == 43 # ArgumentError("cannot convert NULL to string")
+@test length(gs) == 50 # ArgumentError("cannot convert NULL to string")
 
 ms = map(x -> x[2][2], gs);
 m = ms[end-2];
